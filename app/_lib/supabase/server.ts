@@ -27,9 +27,9 @@ function getServiceClient() {
 }
 
 // Lazily initialized singleton — safe because this module is server-only
-let _client: ReturnType<typeof createClient> | null = null
+let _client: ReturnType<typeof getServiceClient> | null = null
 
 export function getSupabaseServiceClient() {
   if (!_client) _client = getServiceClient()
-  return _client
+  return _client!
 }

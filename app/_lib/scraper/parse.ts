@@ -4,6 +4,7 @@
 // ---------------------------------------------------------------------------
 
 import * as cheerio from 'cheerio'
+import type { Element } from 'domhandler'
 import {
   SELECTORS,
   DIETARY_TOOLTIPS,
@@ -29,7 +30,7 @@ function parseCarbonFootprint(
  * `.allg-tooltip` text spans rather than the `li` class attribute, so the
  * parser is robust to class name changes.
  */
-function parseItem($: cheerio.CheerioAPI, el: cheerio.Element): MenuItem {
+function parseItem($: cheerio.CheerioAPI, el: Element): MenuItem {
   const $el = $(el)
 
   // Item name — first <span> child of the <li>
@@ -66,7 +67,7 @@ function parseItem($: cheerio.CheerioAPI, el: cheerio.Element): MenuItem {
  */
 function parseSection(
   $: cheerio.CheerioAPI,
-  el: cheerio.Element
+  el: Element
 ): MenuSection {
   const $el = $(el)
   const name = $el.children(SELECTORS.sectionName).text().trim()
