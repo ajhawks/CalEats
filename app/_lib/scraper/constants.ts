@@ -84,3 +84,17 @@ export const SELECTORS = {
   /** The tooltip text span */
   tooltip: 'span.allg-tooltip',
 } as const
+
+/**
+ * Halls and meal periods to scrape on each daily run.
+ * Scoped to the 4 rotating-menu dining commons × 3 main meal periods.
+ * Restaurant-type halls (golden-bear-cafe, browns, student-union) have
+ * semi-static menus and are not included in the automated daily ingest.
+ * Add "all-day" here when any hall starts using that period.
+ */
+export const SCRAPE_TARGETS: Array<{ hall: string; meals: string[] }> = [
+  { hall: 'cafe-3',     meals: ['breakfast', 'lunch', 'dinner'] },
+  { hall: 'crossroads', meals: ['breakfast', 'lunch', 'dinner'] },
+  { hall: 'foothill',   meals: ['breakfast', 'lunch', 'dinner'] },
+  { hall: 'clark-kerr', meals: ['breakfast', 'lunch', 'dinner'] },
+]
