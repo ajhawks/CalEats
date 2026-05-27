@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Required for 'use cache' directive + cacheLife() in data helpers
+  cacheComponents: true,
 };
 
 export default nextConfig;
