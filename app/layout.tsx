@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import TopBar from "./_components/TopBar";
 import BottomNav from "./_components/BottomNav";
@@ -29,7 +30,12 @@ export default function RootLayout({
           <main className="pt-14 pb-20 min-h-screen">
             {children}
           </main>
-          <BottomNav />
+          {/* Suspense required: BottomNav uses usePathname() (dynamic data) */}
+          <Suspense fallback={
+            <nav className="fixed bottom-0 left-0 right-0 z-50 h-20 bg-white border-t border-gray-200" />
+          }>
+            <BottomNav />
+          </Suspense>
         </div>
       </body>
     </html>

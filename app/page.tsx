@@ -7,6 +7,7 @@
 // ---------------------------------------------------------------------------
 
 import Link from 'next/link'
+import { connection } from 'next/server'
 import {
   getCachedHallsAndHours,
   computeHallStatus,
@@ -94,6 +95,9 @@ function HallListCard({ slug, name, type, status, currentMeal, nextEvent }: Hall
 // ---------------------------------------------------------------------------
 
 export default async function TodayPage() {
+  // ── Signal dynamic rendering — page uses current time for open/closed status
+  await connection()
+
   // ── Fetch halls + hours (cached daily) ──────────────────────────────────
   const hallsData = await getCachedHallsAndHours()
 

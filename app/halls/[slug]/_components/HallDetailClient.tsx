@@ -6,16 +6,17 @@ import type {
   MockHall,
   MockMenuItem,
   MealPeriodName,
-  DietaryLabel,
-  Allergen,
   CarbonFootprint,
 } from '@/app/_lib/data/mock-halls'
 
 // ---------------------------------------------------------------------------
 // Display metadata
+// Real scraper labels: 'vegan' | 'vegetarian' | 'halal' | 'kosher'
+// Mock data also uses: 'gluten-free'
+// Any unknown label falls back gracefully.
 // ---------------------------------------------------------------------------
 
-const DIETARY_META: Record<DietaryLabel, { short: string; color: string }> = {
+const DIETARY_META: Record<string, { short: string; color: string }> = {
   'vegan':       { short: 'VE', color: 'bg-green-100 text-green-800' },
   'vegetarian':  { short: 'VG', color: 'bg-emerald-100 text-emerald-800' },
   'halal':       { short: 'HL', color: 'bg-blue-100 text-blue-800' },
@@ -23,7 +24,7 @@ const DIETARY_META: Record<DietaryLabel, { short: string; color: string }> = {
   'gluten-free': { short: 'GF', color: 'bg-amber-100 text-amber-800' },
 }
 
-const ALLERGEN_EMOJI: Record<Allergen, string> = {
+const ALLERGEN_EMOJI: Record<string, string> = {
   'milk':       '🥛',
   'egg':        '🥚',
   'fish':       '🐟',
@@ -45,18 +46,21 @@ const CARBON_META: Record<Exclude<CarbonFootprint, null>, { emoji: string; label
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function DietaryPills({ labels }: { labels: DietaryLabel[] }) {
+function DietaryPills({ labels }: { labels: string[] }) {
   if (labels.length === 0) return null
   return (
     <div className="flex flex-wrap gap-1 mt-1">
-      {labels.map((l) => (
-        <span
-          key={l}
-          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${DIETARY_META[l].color}`}
-        >
-          {DIETARY_META[l].short}
-        </span>
-      ))}
+      {labels.map((l) => {
+        const meta = DIETARY_META[l] ?? {
+          short: l.slice(0, 2).toUpperCase(),
+          color: 'bg-gray-100 text-gray-700',
+        }
+        return (
+          <span key={l} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${meta.color}`}>
+            {meta.short}
+          </span>
+        )
+      })}
     </div>
   )
 }
@@ -164,18 +168,21 @@ function ItemModal({
             </p>
             {item.dietaryLabels.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {item.dietaryLabels.map((l) => (
-                  <span
-                    key={l}
-                    className={`text-xs font-semibold px-3 py-1 rounded-full ${DIETARY_META[l].color}`}
-                  >
-                    ✓ {DIETARY_META[l].short === 'VE' ? 'Vegan'
-                      : DIETARY_META[l].short === 'VG' ? 'Vegetarian'
-                      : DIETARY_META[l].short === 'HL' ? 'Halal'
-                      : DIETARY_META[l].short === 'KO' ? 'Kosher'
-                      : 'Gluten Free'}
-                  </span>
-                ))}
+                {item.dietaryLabels.map((l) => {
+                  const meta = DIETARY_META[l] ?? { short: l.toUpperCase(), color: 'bg-gray-100 text-gray-700' }
+                  const fullName =
+                    l === 'vegan'       ? 'Vegan'
+                    : l === 'vegetarian'? 'Vegetarian'
+                    : l === 'halal'     ? 'Halal'
+                    : l === 'kosher'    ? 'Kosher'
+                    : l === 'gluten-free' ? 'Gluten Free'
+                    : l.charAt(0).toUpperCase() + l.slice(1)
+                  return (
+                    <span key={l} className={`text-xs font-semibold px-3 py-1 rounded-full ${meta.color}`}>
+                      ✓ {fullName}
+                    </span>
+                  )
+                })}
               </div>
             ) : (
               <p className="text-sm text-gray-400">No dietary labels</p>
@@ -192,8 +199,8 @@ function ItemModal({
               <div className="flex flex-wrap gap-2">
                 {item.allergens.map((a) => (
                   <span key={a} className="text-sm text-gray-700">
-                    {ALLERGEN_EMOJI[a]}{' '}
-                    <span className="capitalize">{a.replace('-', ' ')}</span>
+                    {ALLERGEN_EMOJI[a] ?? '⚠️'}{' '}
+                    <span className="capitalize">{a.replace(/-/g, ' ')}</span>
                   </span>
                 ))}
               </div>

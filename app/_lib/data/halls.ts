@@ -6,7 +6,7 @@
 // getPacificNow()           — extract Pacific time components from Date
 // ---------------------------------------------------------------------------
 
-import { cacheLife } from 'next/cache'
+import { cacheLife, cacheTag } from 'next/cache'
 import { getSupabasePublicClient } from '../supabase/client'
 
 // ---------------------------------------------------------------------------
@@ -162,18 +162,22 @@ export function computeHallStatus(
 
 /**
  * Fetch all dining halls and their complete operating_hours from Supabase.
- * Cached for 24 hours — update the cache tag when schedules change.
+ * Cached for 24 hours — schedules change at most once per semester.
+ *
+ * Optimised: was 3 queries (dining_halls twice + operating_hours once).
+ * Now 2 queries: dining_halls once (with id) + operating_hours once.
  */
 export async function getCachedHallsAndHours(): Promise<HallRow[]> {
   'use cache'
   cacheLife('days')
+  cacheTag('halls-and-hours')
 
   const db = getSupabasePublicClient()
 
-  // Fetch all halls
+  // Single query — include id so we can join with operating_hours client-side
   const { data: halls, error: hallErr } = await db
     .from('dining_halls')
-    .select('slug, name, type')
+    .select('id, slug, name, type')
     .order('name')
 
   if (hallErr || !halls) return []
@@ -185,7 +189,7 @@ export async function getCachedHallsAndHours(): Promise<HallRow[]> {
 
   if (hoursErr) return []
 
-  // Build a map: hall_id → OperatingHour[]
+  // Build map: hall_id → OperatingHour[]
   const hoursByHall = new Map<string, OperatingHour[]>()
   for (const row of allHours ?? []) {
     if (!hoursByHall.has(row.hall_id)) hoursByHall.set(row.hall_id, [])
@@ -197,22 +201,11 @@ export async function getCachedHallsAndHours(): Promise<HallRow[]> {
     })
   }
 
-  // We need hall UUIDs to look up hours — fetch them
-  const { data: hallIds, error: idErr } = await db
-    .from('dining_halls')
-    .select('id, slug')
-
-  if (idErr || !hallIds) return []
-
-  const slugToId = new Map(hallIds.map((h) => [h.slug, h.id]))
-
-  return halls.map((hall) => {
-    const hallId = slugToId.get(hall.slug) ?? ''
-    return {
-      slug:  hall.slug,
-      name:  hall.name,
-      type:  hall.type,
-      hours: hoursByHall.get(hallId) ?? [],
-    }
-  })
+  // Join halls with their hours using the id we already have — no second query
+  return halls.map((hall) => ({
+    slug:  hall.slug,
+    name:  hall.name,
+    type:  hall.type,
+    hours: hoursByHall.get(hall.id) ?? [],
+  }))
 }

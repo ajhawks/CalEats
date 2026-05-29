@@ -9,7 +9,7 @@
 // IMPORTANT: 'use cache' requires cacheComponents: true in next.config.ts
 // ---------------------------------------------------------------------------
 
-import { cacheLife } from 'next/cache'
+import { cacheLife, cacheTag } from 'next/cache'
 import { getSupabasePublicClient } from '../supabase/client'
 
 // ---------------------------------------------------------------------------
@@ -77,15 +77,42 @@ export function getTodayPacific(): string {
 }
 
 // ---------------------------------------------------------------------------
-// Cached data query
+// Hall ID cache  — UUIDs never change; cache for days, not hours
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve a hall slug → Supabase UUID.
+ * Cached for days: hall IDs are immutable and shared across all menu requests.
+ * Separating this from getMenuData avoids redundant lookups when 3 meal
+ * periods are fetched in parallel (each would otherwise query dining_halls).
+ */
+async function getCachedHallId(slug: string): Promise<string | null> {
+  'use cache'
+  cacheLife('days')
+  cacheTag(`hall-id:${slug}`)
+
+  const db = getSupabasePublicClient()
+
+  const { data, error } = await db
+    .from('dining_halls')
+    .select('id')
+    .eq('slug', slug)
+    .single()
+
+  if (error || !data) return null
+  return data.id
+}
+
+// ---------------------------------------------------------------------------
+// Menu data query
 // ---------------------------------------------------------------------------
 
 /**
  * Fetch and transform menu data for a specific hall, date, and meal period.
  *
- * Arguments become part of the cache key automatically — different
- * (hall, date, meal) triples are cached independently.
- * Cache TTL: 1 hour (menu content changes at most once daily).
+ * Cache key: (hall, date, mealPeriod) — each triple cached independently.
+ * Cache TTL: 1 hour fallback; invalidated immediately via cacheTag when the
+ * ingest pipeline writes fresh data (see schedule.ts → revalidateTag).
  */
 export async function getMenuData(
   hall: string,
@@ -94,17 +121,16 @@ export async function getMenuData(
 ): Promise<ApiMenuResponse> {
   'use cache'
   cacheLife('hours')
+  // Tag used by the ingest pipeline to invalidate this exact cache entry
+  // the moment fresh menu data is written to Supabase.
+  cacheTag(`menu:${hall}:${date}:${mealPeriod}`)
 
   const db = getSupabasePublicClient()
 
-  // ── 1. Resolve hall_id ──────────────────────────────────────────────────
-  const { data: hallRow, error: hallErr } = await db
-    .from('dining_halls')
-    .select('id')
-    .eq('slug', hall)
-    .single()
+  // ── 1. Resolve hall_id (separate days-level cache) ──────────────────────
+  const hallId = await getCachedHallId(hall)
 
-  if (hallErr || !hallRow) {
+  if (!hallId) {
     return {
       hall,
       date,
@@ -114,8 +140,6 @@ export async function getMenuData(
       status: 'unavailable',
     }
   }
-
-  const hallId = hallRow.id
 
   // ── 2. Fetch menu items ──────────────────────────────────────────────────
   const { data: items, error: itemErr } = await db

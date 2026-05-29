@@ -12,8 +12,10 @@ export type MealPeriodName = 'Breakfast' | 'Lunch' | 'Dinner' | 'All Day'
 
 export interface MockMenuItem {
   name: string
-  dietaryLabels: DietaryLabel[]
-  allergens: Allergen[]
+  // Using string[] so real DB data (which returns plain strings) is compatible.
+  // Mock data values are still validated at the call sites via DietaryLabel / Allergen.
+  dietaryLabels: string[]
+  allergens: string[]
   carbonFootprint: CarbonFootprint
 }
 

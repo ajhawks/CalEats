@@ -85,5 +85,13 @@ export async function GET(request: NextRequest) {
 
   // ── Fetch (cached) data ──────────────────────────────────────────────────
   const data = await getMenuData(hall, date, meal)
-  return Response.json(data)
+
+  // Cache successful responses at the HTTP edge (Vercel CDN) for 1 hour.
+  // Stale-while-revalidate allows serving cached content while refreshing.
+  // Unavailable menus are not cached — they may become available shortly.
+  const headers: Record<string, string> = data.status === 'available'
+    ? { 'Cache-Control': 's-maxage=3600, stale-while-revalidate=86400' }
+    : { 'Cache-Control': 'no-store' }
+
+  return Response.json(data, { headers })
 }

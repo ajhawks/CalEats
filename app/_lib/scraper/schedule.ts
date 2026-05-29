@@ -6,6 +6,7 @@
 // Executes targets with bounded parallelism to avoid flooding Berkeley Dining.
 // ---------------------------------------------------------------------------
 
+import { revalidateTag } from 'next/cache'
 import { scrapeMenu } from './scraper'
 import { writeMenuResult } from './db-write'
 import { SCRAPE_TARGETS } from './constants'
@@ -65,6 +66,12 @@ export async function runSchedule(
 
           if (!dryRun) {
             await writeMenuResult(menuResult)
+            // Bust the Next.js menu cache so the freshly ingested data is
+            // visible immediately — don't wait for the 1-hour TTL to expire.
+            if (menuResult.status === 'success') {
+              // Second arg matches cacheLife('hours') used in getMenuData()
+              revalidateTag(`menu:${hall}:${targetDate}:${meal}`, 'hours')
+            }
           }
 
           return {
